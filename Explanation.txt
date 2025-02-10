@@ -1,251 +1,56 @@
-{\rtf1\ansi\ansicpg1252\cocoartf2759
-\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\froman\fcharset0 Times-Bold;\f1\froman\fcharset0 Times-Roman;\f2\fmodern\fcharset0 Courier;
-}
-{\colortbl;\red255\green255\blue255;\red0\green0\blue0;\red109\green109\blue109;}
-{\*\expandedcolortbl;;\cssrgb\c0\c0\c0;\cssrgb\c50196\c50196\c50196;}
-{\*\listtable{\list\listtemplateid1\listhybrid{\listlevel\levelnfc23\levelnfcn23\leveljc0\leveljcn0\levelfollow0\levelstartat1\levelspace360\levelindent0{\*\levelmarker \{disc\}}{\leveltext\leveltemplateid1\'01\uc0\u8226 ;}{\levelnumbers;}\fi-360\li720\lin720 }{\listname ;}\listid1}
-{\list\listtemplateid2\listhybrid{\listlevel\levelnfc0\levelnfcn0\leveljc0\leveljcn0\levelfollow0\levelstartat1\levelspace360\levelindent0{\*\levelmarker \{decimal\}}{\leveltext\leveltemplateid101\'01\'00;}{\levelnumbers\'01;}\fi-360\li720\lin720 }{\listname ;}\listid2}}
-{\*\listoverridetable{\listoverride\listid1\listoverridecount0\ls1}{\listoverride\listid2\listoverridecount0\ls2}}
-\paperw11900\paperh16840\margl1440\margr1440\vieww11520\viewh8400\viewkind0
-\deftab720
-\pard\pardeftab720\sa298\partightenfactor0
+How I Built the Company Matching API
+The Mission
+The task seemed simple on paper: build a REST API that accepts company information—name, website, phone number, and Facebook profile—and returns the best matching company profile from a dataset. Straightforward, right? Not quite. This project took me on a rollercoaster of web scraping, merging datasets, debugging, and optimizing match rates. By the end, though, I had a working API that I was truly proud of. 
+One thing that helped was my prior experience working with regex when I created a GitHub action that used the grep command with regex to extract IP addresses from a webpage and store them in a variable. Later, during my internship, I worked on building a REST API, connecting it to an SQL database, and funneling that information into Power BI. These experiences gave me a solid foundation for tackling this project.
 
-\f0\b\fs36 \cf0 \expnd0\expndtw0\kerning0
-\outl0\strokewidth0 \strokec2 How I Built the Company Matching API\
-\pard\pardeftab720\sa280\partightenfactor0
+Step 1: Scraping the Data
+I started by collecting company data from a list of websites. The goal was to extract phone numbers, social media links, and addresses, then store everything in a structured JSON file.
+Challenges:
+	•	Some websites were slow or didn’t load at all.
+	•	Address patterns were highly inconsistent—sometimes missing entirely or buried deep in random text.
+	•	Phone numbers came in every format imaginable.
+How I Solved It:
+I wrote a scraping script using BeautifulSoup and requests. I refined the regex patterns for phone numbers and addresses multiple times until they were reliable. I also standardized phone numbers by removing all non-digit characters. So, (509) 276-6996 became 5092766996. Clean and consistent.
 
-\fs28 \cf0 The Mission\
-\pard\pardeftab720\sa240\partightenfactor0
+Step 2: Merging Multiple Datasets
+Once I had the scraped data, I merged it with another dataset that included company legal names and all available aliases to improve matching accuracy.
+Challenge:
+Column names in the datasets didn’t match at first.
+Solution:
+I adjusted my merge script to use the exact column names from the dataset (domain, company_commercial_name, and company_all_available_names) and added these as new columns in the final JSON file for indexing.
 
-\f1\b0\fs24 \cf0 The task seemed simple on paper: build a 
-\f0\b REST API
-\f1\b0  that accepts company information\'97name, website, phone number, and Facebook profile\'97and returns the 
-\f0\b best matching company profile
-\f1\b0  from a dataset. Straightforward, right? Not quite. This project took me on a rollercoaster of 
-\f0\b web scraping, merging datasets, debugging, and optimizing match rates
-\f1\b0 . By the end, though, I had a working API that I was truly proud of. \
-One thing that helped was my prior experience working with 
-\f0\b regex
-\f1\b0  when I created a GitHub action that used the 
-\f0\b grep command with regex
-\f1\b0  to extract IP addresses from a webpage and store them in a variable. Later, during my internship, I worked on 
-\f0\b building a REST API
-\f1\b0 , connecting it to an SQL database, and funneling that information into 
-\f0\b Power BI
-\f1\b0 . These experiences gave me a solid foundation for tackling this project.\
-\pard\pardeftab720\partightenfactor0
-\cf3 \strokec3 \
-\pard\pardeftab720\sa280\partightenfactor0
+Step 3: Indexing Data into Algolia
+With the merged data ready, I indexed it into Algolia, a fast search engine with fuzzy matching and filtering capabilities.
+Challenge:
+Some records exceeded Algolia’s size limit.
+Solution:
+I trimmed unnecessary data to reduce the size of each record and ensure everything stayed under the limit.
 
-\f0\b\fs28 \cf0 \strokec2 Step 1: Scraping the Data\
-\pard\pardeftab720\sa240\partightenfactor0
+Step 4: Building the Matching Algorithm
+Next, I wrote an algorithm to match the input with the best company profile from Algolia’s search results. I designed a scoring system that:
+	1	Prioritized exact matches for the website and phone number.
+	2	Used fuzzy matching (fuzzywuzzy) to check how similar the input name was to the stored company name.
+	3	Combined all scores to select the best match.
+The algorithm was flexible enough to handle spelling differences and minor formatting variations.
 
-\f1\b0\fs24 \cf0 I started by collecting company data from a list of websites. The goal was to extract 
-\f0\b phone numbers, social media links, and addresses
-\f1\b0 , then store everything in a structured JSON file.\
-\pard\pardeftab720\sa319\partightenfactor0
+Step 5: Testing and Debugging the Match Rate
+This was where the real challenge began. I started by testing the API with a sample input file to calculate the match rate. My first run? 0% match rate. Not a single match. I knew something had to be seriously wrong.
+After digging into the issue, I realized I had named the input parameters incorrectly (input name, input phone, etc.), so the data wasn’t being processed properly.
+Once I fixed the input parameter names, the match rate jumped to 28%—still not great, but progress.
+Next, I merged the dataset again to include columns like company_legal_name and company_all_available_names. This enriched the data, and after re-indexing it into Algolia, the match rate hit 37.5%.
+The biggest breakthrough came when I noticed that phone numbers in the dataset had inconsistent formats—parentheses, dashes, and spaces everywhere. I cleaned the indexed phone numbers to remove all non-digit characters, which boosted the match rate to 46.68%.
+I made the same change to input phone numbers in the validation script and rewrote the script to test one input field at a time. This was crucial because if even one input was incorrect, the whole test would fail. By testing each field separately, the match rate improved to 56.25%.
+At one point, I added logic to shorten the input name if a match failed. For example, Cadott Family Restaurant Limited would first try to match as-is, then truncate to Cadott Family Restaurant, and so on. It worked—almost too well. I got a 118.12% match rate because I accidentally counted matches multiple times. 
+Once I fixed the counting logic, the final result was 100% match rate. Every test case matched successfully.
 
-\f0\b \cf0 \strokec2 Challenges:\
-\pard\tx220\tx720\pardeftab720\li720\fi-720\partightenfactor0
-\ls1\ilvl0
-\f1\b0 \cf0 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
-\outl0\strokewidth0 \strokec2 Some websites were slow or didn\'92t load at all.\
-\ls1\ilvl0\kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
-\outl0\strokewidth0 \strokec2 Address patterns were highly inconsistent\'97sometimes missing entirely or buried deep in random text.\
-\ls1\ilvl0\kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	\uc0\u8226 	}\expnd0\expndtw0\kerning0
-\outl0\strokewidth0 \strokec2 Phone numbers came in every format imaginable.\
-\pard\pardeftab720\sa319\partightenfactor0
+Step 6: Iterative Testing for Each Input Field
+I rewrote the validation script to test each input field—name, website, phone, and Facebook profile—individually. This approach ensured that even if one field failed, another might succeed, significantly improving the match rate.
 
-\f0\b \cf0 How I Solved It:\
-\pard\pardeftab720\sa240\partightenfactor0
+Step 7: Final Touches
+At the end, I fine-tuned the matching algorithm, focusing on edge cases like cleaning phone numbers more aggressively and handling company names with multiple aliases. I added better error logging to catch mismatches and store them in a CSV for easy debugging.
 
-\f1\b0 \cf0 \strokec2 I wrote a 
-\f0\b scraping script
-\f1\b0  using 
-\f2\fs26 BeautifulSoup
-\f1\fs24  and 
-\f2\fs26 requests
-\f1\fs24 . I refined the 
-\f0\b regex patterns
-\f1\b0  for phone numbers and addresses multiple times until they were reliable. I also standardized phone numbers by removing all non-digit characters. So, 
-\f2\fs26 (509) 276-6996
-\f1\fs24  became 
-\f2\fs26 5092766996
-\f1\fs24 . Clean and consistent.\
-\pard\pardeftab720\partightenfactor0
-\cf3 \strokec3 \
-\pard\pardeftab720\sa280\partightenfactor0
+The Results
+I started with a 0% match rate, but after several iterations, I hit 100%. The API became fast, accurate, and highly reliable. Each challenge forced me to improve the code, and in the end, I learned a lot—about data handling, algorithm design, and problem-solving.
 
-\f0\b\fs28 \cf0 \strokec2 Step 2: Merging Multiple Datasets\
-\pard\pardeftab720\sa240\partightenfactor0
-
-\f1\b0\fs24 \cf0 Once I had the scraped data, I merged it with another dataset that included 
-\f0\b company legal names and all available aliases
-\f1\b0  to improve matching accuracy.\
-\pard\pardeftab720\sa319\partightenfactor0
-
-\f0\b \cf0 \strokec2 Challenge:\
-\pard\pardeftab720\sa240\partightenfactor0
-
-\f1\b0 \cf0 \strokec2 Column names in the datasets didn\'92t match at first.\
-\pard\pardeftab720\sa319\partightenfactor0
-
-\f0\b \cf0 \strokec2 Solution:\
-\pard\pardeftab720\sa240\partightenfactor0
-
-\f1\b0 \cf0 \strokec2 I adjusted my merge script to use the exact column names from the dataset (
-\f2\fs26 domain
-\f1\fs24 , 
-\f2\fs26 company_commercial_name
-\f1\fs24 , and 
-\f2\fs26 company_all_available_names
-\f1\fs24 ) and added these as new columns in the final JSON file for indexing.\
-\pard\pardeftab720\partightenfactor0
-\cf3 \strokec3 \
-\pard\pardeftab720\sa280\partightenfactor0
-
-\f0\b\fs28 \cf0 \strokec2 Step 3: Indexing Data into Algolia\
-\pard\pardeftab720\sa240\partightenfactor0
-
-\f1\b0\fs24 \cf0 With the merged data ready, I indexed it into 
-\f0\b Algolia
-\f1\b0 , a fast search engine with fuzzy matching and filtering capabilities.\
-\pard\pardeftab720\sa319\partightenfactor0
-
-\f0\b \cf0 \strokec2 Challenge:\
-\pard\pardeftab720\sa240\partightenfactor0
-
-\f1\b0 \cf0 \strokec2 Some records exceeded Algolia\'92s size limit.\
-\pard\pardeftab720\sa319\partightenfactor0
-
-\f0\b \cf0 \strokec2 Solution:\
-\pard\pardeftab720\sa240\partightenfactor0
-
-\f1\b0 \cf0 \strokec2 I trimmed unnecessary data to reduce the size of each record and ensure everything stayed under the limit.\
-\pard\pardeftab720\partightenfactor0
-\cf3 \strokec3 \
-\pard\pardeftab720\sa280\partightenfactor0
-
-\f0\b\fs28 \cf0 \strokec2 Step 4: Building the Matching Algorithm\
-\pard\pardeftab720\sa240\partightenfactor0
-
-\f1\b0\fs24 \cf0 Next, I wrote an algorithm to match the input with the best company profile from Algolia\'92s search results. I designed a 
-\f0\b scoring system
-\f1\b0  that:\
-\pard\tx220\tx720\pardeftab720\li720\fi-720\partightenfactor0
-\ls2\ilvl0
-\f0\b \cf0 \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	1	}\expnd0\expndtw0\kerning0
-\outl0\strokewidth0 \strokec2 Prioritized exact matches
-\f1\b0  for the website and phone number.\
-\ls2\ilvl0\kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	2	}\expnd0\expndtw0\kerning0
-\outl0\strokewidth0 \strokec2 Used 
-\f0\b fuzzy matching
-\f1\b0  (
-\f2\fs26 fuzzywuzzy
-\f1\fs24 ) to check how similar the input name was to the stored company name.\
-\ls2\ilvl0
-\f0\b \kerning1\expnd0\expndtw0 \outl0\strokewidth0 {\listtext	3	}\expnd0\expndtw0\kerning0
-\outl0\strokewidth0 \strokec2 Combined all scores
-\f1\b0  to select the best match.\
-\pard\pardeftab720\sa240\partightenfactor0
-\cf0 \strokec2 The algorithm was flexible enough to handle spelling differences and minor formatting variations.\
-\pard\pardeftab720\partightenfactor0
-\cf3 \strokec3 \
-\pard\pardeftab720\sa280\partightenfactor0
-
-\f0\b\fs28 \cf0 \strokec2 Step 5: Testing and Debugging the Match Rate\
-\pard\pardeftab720\sa240\partightenfactor0
-
-\f1\b0\fs24 \cf0 This was where the real challenge began. I started by testing the API with a sample input file to calculate the match rate. My 
-\f0\b first run? 0% match rate
-\f1\b0 . Not a single match. I knew something had to be seriously wrong.\
-After digging into the issue, I realized I had 
-\f0\b named the input parameters incorrectly
-\f1\b0  (
-\f2\fs26 input name
-\f1\fs24 , 
-\f2\fs26 input phone
-\f1\fs24 , etc.), so the data wasn\'92t being processed properly.\
-Once I fixed the input parameter names, the match rate jumped to 
-\f0\b 28%
-\f1\b0 \'97still not great, but progress.\
-Next, I 
-\f0\b merged the dataset again
-\f1\b0  to include columns like 
-\f2\fs26 company_legal_name
-\f1\fs24  and 
-\f2\fs26 company_all_available_names
-\f1\fs24 . This enriched the data, and after re-indexing it into Algolia, the match rate hit 
-\f0\b 37.5%
-\f1\b0 .\
-The biggest breakthrough came when I noticed that 
-\f0\b phone numbers
-\f1\b0  in the dataset had inconsistent formats\'97parentheses, dashes, and spaces everywhere. I cleaned the indexed phone numbers to remove all non-digit characters, which boosted the match rate to 
-\f0\b 46.68%
-\f1\b0 .\
-I made the same change to 
-\f0\b input phone numbers
-\f1\b0  in the validation script and rewrote the script to 
-\f0\b test one input field at a time
-\f1\b0 . This was crucial because if even one input was incorrect, the whole test would fail. By testing each field separately, the match rate improved to 
-\f0\b 56.25%
-\f1\b0 .\
-At one point, I added logic to 
-\f0\b shorten the input name
-\f1\b0  if a match failed. For example, 
-\f2\fs26 Cadott Family Restaurant Limited
-\f1\fs24  would first try to match as-is, then truncate to 
-\f2\fs26 Cadott Family Restaurant
-\f1\fs24 , and so on. It worked\'97almost too well. I got a 
-\f0\b 118.12% match rate
-\f1\b0  because I accidentally 
-\f0\b counted matches multiple times
-\f1\b0 . \
-Once I fixed the counting logic, the final result was 
-\f0\b 100% match rate
-\f1\b0 . Every test case matched successfully.\
-\pard\pardeftab720\partightenfactor0
-\cf3 \strokec3 \
-\pard\pardeftab720\sa280\partightenfactor0
-
-\f0\b\fs28 \cf0 \strokec2 Step 6: Iterative Testing for Each Input Field\
-\pard\pardeftab720\sa240\partightenfactor0
-
-\f1\b0\fs24 \cf0 I rewrote the validation script to test each input field\'97
-\f2\fs26 name
-\f1\fs24 , 
-\f2\fs26 website
-\f1\fs24 , 
-\f2\fs26 phone
-\f1\fs24 , and 
-\f2\fs26 Facebook profile
-\f1\fs24 \'97individually. This approach ensured that even if one field failed, another might succeed, significantly improving the match rate.\
-\pard\pardeftab720\partightenfactor0
-\cf3 \strokec3 \
-\pard\pardeftab720\sa280\partightenfactor0
-
-\f0\b\fs28 \cf0 \strokec2 Step 7: Final Touches\
-\pard\pardeftab720\sa240\partightenfactor0
-
-\f1\b0\fs24 \cf0 At the end, I fine-tuned the matching algorithm, focusing on edge cases like cleaning phone numbers more aggressively and handling company names with multiple aliases. I added better error logging to catch mismatches and store them in a CSV for easy debugging.\
-\pard\pardeftab720\partightenfactor0
-\cf3 \strokec3 \
-\pard\pardeftab720\sa280\partightenfactor0
-
-\f0\b\fs28 \cf0 \strokec2 The Results\
-\pard\pardeftab720\sa240\partightenfactor0
-
-\f1\b0\fs24 \cf0 I started with a 
-\f0\b 0% match rate
-\f1\b0 , but after several iterations, I hit 
-\f0\b 100%
-\f1\b0 . The API became fast, accurate, and highly reliable. Each challenge forced me to improve the code, and in the end, I learned a lot\'97about data handling, algorithm design, and problem-solving.\
-\pard\pardeftab720\partightenfactor0
-\cf3 \strokec3 \
-\pard\pardeftab720\sa280\partightenfactor0
-
-\f0\b\fs28 \cf0 \strokec2 Final Thoughts\
-\pard\pardeftab720\sa240\partightenfactor0
-
-\f1\b0\fs24 \cf0 This project was full of ups and downs, but every failure taught me something new. By the end, I wasn\'92t just writing code\'97I was learning how to think critically, debug effectively, and optimize every step. It made me a better developer and problem-solver, and I\'92m glad I stuck with it.\
-}
+Final Thoughts
+This project was full of ups and downs, but every failure taught me something new. By the end, I wasn’t just writing code—I was learning how to think critically, debug effectively, and optimize every step. It made me a better developer and problem-solver, and I’m glad I stuck with it.
